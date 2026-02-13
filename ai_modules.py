@@ -14,16 +14,16 @@ class TextFileContent(str):
             f.write(self.fcont)
         return
 
-class TODOListManager(list):
-    def __init__(self, todo_list:list)->None:
-        super().__init__(todo_list)
+class TODOListManager:
+    def __init__(self, todo_list:list=[])->None:
+        self.todo = todo_list
         self.nsteps = len(self)
         self.progress = [False for i in range(self.nsteps)]
         self.cur_step = 1
 
     def __str__(self)->str:
         res = '\n```TODO\n'
-        for idx, step in enumerate(self, start=1):
+        for idx, step in enumerate(self.todo, start=1):
             if idx < self.cur_step:
                 res += '[+] '
             elif idx == self.cur_step:
@@ -42,6 +42,7 @@ class TODOListManager(list):
         self.cur_step = 1
         self.nsteps = 0
         self.progress = []
+        self.todo = []
         super().__init__([])
 
     def complete_step(self)->None:
@@ -57,13 +58,14 @@ class TODOListManager(list):
     def append(self, step:str)->None:
         self.nsteps += 1
         self.progress += [False]
+        self.todo.append(step)
 
 class AIModule:
     def __init__(self, api_key: str, model: str, url: Optional[str] = None, system_prompt: str = '你是一个AI助手。') -> None:
         self.model, self.url, self.system_prompt = model, url, system_prompt
         self.history = [{'role': 'system', 'content': system_prompt}]
         self.client = OpenAI(api_key=api_key) if url is None else OpenAI(api_key=api_key, base_url=url)
-        self.todos = []
+        self.todos = TODOListManager()
 
     def __answer(self, prompt: str, show: bool = True) -> str:
         response = self.client.chat.completions.create(
@@ -98,13 +100,12 @@ class AIModule:
         match = re.search(r'```TODO\s*\n(.*?)```', todo_res, re.DOTALL)
         if match:
             todo_text = match.group(1)
-            steps = []
             for line in todo_text.splitlines():
                 line = line.strip()
                 if line and (re.match(r'^\d+\.\s+', line) or line.startswith('-')):
-                    steps.append(line)
-            self.todos = steps
+                    self.todos.append(line[1:] if line.startswith('-') else line)
         else:
-            self.todos = [line.strip() for line in todo_res.splitlines() if line.strip()]
+            for line in todo_res.splitlines():
+                self.todos.append(line.strip())
 
         # Complete each step in TODO list
