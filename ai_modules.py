@@ -97,7 +97,7 @@ class AIModule:
             prompt=prompt + '\n现在，请你将任务拆解成多个步骤，生成一个TODO列表。回答格式：\n```TODO\n1. ...\n2. ...\n...\n```\n编号遵循Markdown语法。回答时只需按照格式生成TODO列表即可，不要添加任何其他内容。',
             show=False
         )
-        match = re.search(r'```TODO\s*\n(.*?)```', todo_res, re.DOTALL)
+        match = re.search('```TODO\\s*\n(.*?)```', todo_res, re.DOTALL)
         if match:
             todo_text = match.group(1)
             for line in todo_text.splitlines():
