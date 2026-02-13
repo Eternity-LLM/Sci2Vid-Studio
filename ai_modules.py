@@ -94,7 +94,7 @@ class AIModule:
 
         # Generate TODO list
         todo_res = self.__answer(
-            prompt=prompt + '\n现在，请你将任务拆解成多个步骤，生成一个TODO列表。回答格式：\n```TODO\n1. ...\n2. ...\n...\n```\n编号遵循Markdown语法。回答时只需按照格式生成TODO列表即可，不要添加任何其他内容。',
+            prompt=prompt + '\n现在，请你将任务拆解成多个步骤，生成一个TODO列表。回答格式：\n```TODO\n1. ...\n2. ...\n...\n```\n编号遵循Markdown语法。回答时必须严格按照格式生成TODO列表，不要添加任何其他内容。',
             show=False
         )
         match = re.search('```TODO\\s*\n(.*?)```', todo_res, re.DOTALL)
@@ -102,8 +102,7 @@ class AIModule:
             todo_text = match.group(1)
             for line in todo_text.splitlines():
                 line = line.strip()
-                if line and (re.match(r'^\d+\.\s+', line) or line.startswith('-')):
-                    self.todos.append(line[1:] if line.startswith('-') else line)
+                self.todos.append(line[1:] if line.startswith('-') else line)
         else:
             for line in todo_res.splitlines():
                 self.todos.append(line.strip())
