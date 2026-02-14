@@ -32,14 +32,18 @@ class AIFunction:
         return
     
     def __call__(self, __func_name:str, *args, **kwargs):
-        idx = -1
-        for i, func in enumerate(self.functions):
-            if func['name'] == __func_name:
-                idx = i
-                break
-        if idx == -1:
-            raise ValueError(f'Function {__func_name} not found.')
-        return self.__f[idx](*args, **kwargs)
+        __func_name = __func_name.strip()
+        try:
+            idx = -1
+            for i, func in enumerate(self.functions):
+                if func['name'] == __func_name:
+                    idx = i
+                    break
+            if idx == -1:
+                raise ValueError(f'Function {__func_name} not found.')
+            return self.__f[idx](*args, **kwargs)
+        except Exception as e:
+            return f'Error calling function {__func_name}: {str(e)}'
 
 AIFunction.__doc__ = '''AIFunction类用于管理AI函数的定义和调用。它包含以下方法：
 - __init__(self, functions_dict:List[dict], functions:list): 初始化函数管理器，接受一个函数定义列表和一个函数实现列表。
