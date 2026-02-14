@@ -43,3 +43,33 @@ class TODOListManager:
         self.nsteps += 1
         self.progress += [False]
         self.todo.append(step)
+
+    def print(self, color:bool=True)->None:
+        if not color:
+            print(self)
+            return
+        res = '\033[33m\nTODO\n\033[0m'
+        for idx, step in enumerate(self.todo, start=1):
+            if idx < self.cur_step:
+                res += '\033[32m√\033[0m '   # Green check mark for completed steps
+            elif idx == self.cur_step:
+                res += '\033[36m→ '   # Cyan arrow for the current step
+            else:
+                res += '\033[31m×\033[0m '   # Red cross for incomplete steps
+            res += f'{step}\n'
+        res += '\n'
+        if self.cur_step > self.nsteps:
+            res += '\033[32m当前所有任务均已完成！\033[0m'
+        else:
+            res += '\033[33m标注[+][*][-]分别表示已完成、当前步骤、未完成步骤。\n当前正在处理的步骤为第{self.cur_step}步：\n\033[36m{self[self.cur_step-1]}\n\033[0m'
+        print(res)
+        return
+
+if __name__ == '__main__':
+    todo_manager = TODOListManager(['Step 1: Do something', 'Step 2: Do something else', 'Step 3: Finish up'])
+    todo_manager.append('Step 4: Extra step')
+    print(todo_manager)
+    todo_manager.complete_step()
+    print(todo_manager)
+    todo_manager.complete_all()
+    print(todo_manager)
