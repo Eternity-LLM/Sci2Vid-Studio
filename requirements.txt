@@ -1,2 +1,4 @@
 openai==2.21.0
 'volcengine-python-sdk[ark]'
+tqdm==4.67.1
+requests==2.32.3
