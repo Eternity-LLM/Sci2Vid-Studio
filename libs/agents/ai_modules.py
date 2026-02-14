@@ -3,7 +3,8 @@ import re
 
 import openai
 from openai import OpenAI
-from data_manager import TextFileContent, TODOListManager
+#from data_manager import TextFileContent, TODOListManager
+from ..tools import TextFileContent, TODOListManager
 
 class AIModule:
     def __init__(self, api_key: str, model: str, url: Optional[str] = None, system_prompt: str = '你是一个AI助手。') -> None:
