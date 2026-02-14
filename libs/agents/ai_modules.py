@@ -51,5 +51,6 @@ class AIModule:
         else:
             for line in todo_res.splitlines():
                 self.todos.append(line.strip())
+        self.todos.print()
 
         # Complete each step in TODO list
