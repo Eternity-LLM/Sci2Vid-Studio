@@ -3,7 +3,6 @@ import re
 
 import openai
 from openai import OpenAI
-#from data_manager import TextFileContent, TODOListManager
 from ..tools import TextFileContent, TODOListManager
 
 class AIModule:
