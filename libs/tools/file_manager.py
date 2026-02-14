@@ -1,4 +1,3 @@
-from regex import F
 from .tool_manager import AIFunction
 import os
 
@@ -77,14 +76,40 @@ class FileManager:
             required=[],
             function=self.list_files
         )
+        self.function.add_function(
+            name='refresh',
+            description='刷新当前目录的文件列表（重新读取磁盘）。',
+            parameters={},
+            required=[],
+            function=self.refresh
+        )
+        self.function.add_function(
+            name='view_dir',
+            description='查看当前目录下指定子目录的树状结构，返回字符串。',
+            parameters={
+                'dir_name': {'type': 'string', 'description': '要查看的子目录名称，必须在当前目录中存在。'}
+            },
+            required=['dir_name'],
+            function=self.view_dir
+        )
         return
-        
+    
+    def refresh(self)->None:
+        self.files = os.listdir(self.dir_path)
+        if self.level >= 1:
+            for idx, file in enumerate(self.files):
+                if os.path.isdir(os.path.join(self.dir_path, file)):
+                    self.files[idx] = FileManager(os.path.join(self.dir_path, file), self.level-1)
+
     def read_file(self, file_name:str) -> TextFileContent:
         if file_name not in self.files:
             raise ValueError(f'File {file_name} not found in directory {self.dir_path}.')
-        with open(os.path.join(self.dir_path, file_name), 'r', encoding='utf-8') as f:
-            content = f.read()
-        return str(TextFileContent(file_name, content))
+        try:
+            with open(os.path.join(self.dir_path, file_name), 'r', encoding='utf-8') as f:
+                content = f.read()
+            return str(TextFileContent(file_name, content))
+        except:
+            return '无法打开文件。请检查文件是否存在，并且文件名是否正确。不支持查看非文本文件。'
     
     def write_file(self, file_name:str, content:str) -> None:
         with open(os.path.join(self.dir_path, file_name), 'w', encoding='utf-8') as f:
@@ -92,6 +117,15 @@ class FileManager:
         if file_name not in self.files:
             self.files.append(file_name)
     
+    def view_dir(self, dir_name:str) -> str:
+        dir_path = os.path.join(self.dir_path, dir_name)
+        if not os.path.exists(dir_path):
+            raise ValueError(f'Directory {dir_name} not found in {self.dir_path}.')
+        if not os.path.isdir(dir_path):
+            raise ValueError(f'{dir_name} is not a directory in {self.dir_path}.')
+        sub_manager = FileManager(dir_path, 3)
+        return sub_manager.list_files()
+
     def add_dir(self, dir_name:str) -> None:
         new_dir_path = os.path.join(self.dir_path, dir_name)
         if not os.path.exists(new_dir_path):
@@ -175,3 +209,8 @@ FileManager.__call__.__doc__ = '''__call__方法用于根据函数名称调用�
 - *args: 可选的位置参数，将被传递给函数实现。
 - **kwargs: 可选的关键字参数，将被传递给函数实现。
 该方法会在函数定义列表中查找与给定名称匹配的函数，如果找到，则调用对应的函数实现并传递参数。如果没有找到匹配的函数，则会抛出一个ValueError异常。'''
+FileManager.refresh.__doc__ = '''refresh方法用于刷新当前目录的文件列表（重新读取磁盘）。该方法不需要参数。
+该方法会重新读取当前目录的文件列表，并根据层级参数重新构建子目录的FileManager对象，以确保文件管理器的状态与磁盘上的实际文件系统保持一致。'''
+FileManager.view_dir.__doc__ = '''view_dir方法用于查看当前目录下指定子目录的树状结构，返回字符串。它接受以下参数：
+- dir_name: 要查看的子目录名称，必须在当前目录中存在。
+该方法会检查指定的子目录名称是否存在于当前目录中，并且确认它是一个目录。如果满足条件，则创建一个新的FileManager对象来管理该子目录，并调用其list_files方法来获取子目录的树状图表示，最终返回该字符串。如果指定的子目录不存在，或者不是一个目录，则会抛出一个ValueError异常。'''

@@ -6,6 +6,7 @@ class TODOListManager:
         self.nsteps = len(self.todo)
         self.progress = [False for i in range(self.nsteps)]
         self.cur_step = 1
+        self.pause = False
         self.build_function()
 
     def __str__(self)->str:
@@ -24,6 +25,9 @@ class TODOListManager:
         else:
             res += f'标注[+][*][-]分别表示已完成、当前步骤、未完成步骤。\n当前正在处理的步骤为第{self.cur_step}步：\n```text\n{self.todo[self.cur_step-1]}\n```'
         return res
+
+    def pause_todo(self)->None:
+        self.pause = True
 
     def clear(self)->None:
         self.cur_step = 1
@@ -106,6 +110,13 @@ class TODOListManager:
             required=[],
             function=self.__str__
         )
+        self.function.add_function(
+            name='pause_todo',
+            description='暂停处理当前待办事项，以便进一步确认用户要求。调用前请先输出一段提示信息，说明当前正在处理的步骤，并询问用户是否继续执行和执行的细节。',
+            parameters={},
+            required=[],
+            function=self.pause_todo
+        )
         return
 
     def __call__(self, __func_name:str, *args, **kwargs):
@@ -135,6 +146,7 @@ TODOListManager.build_function.__doc__ = '''build_function方法用于构建并�
 它会将常用操作（添加步骤、标记完成、全部完成、清空、检查）以函数接口的形式注册，方便外部通过函数名调用对应的方法。'''
 TODOListManager.__call__.__doc__ = '''__call__方法根据函数名称（由build_function注册的名称）调用对应的函数实现。
 参数为函数名及其位置/关键字参数，会委托给内部的AIFunction实例进行调用并返回结果。'''
+TODOListManager.pause_todo.__doc__ = '''pause_todo方法用于暂停处理当前待办事项，以便进一步确认用户要求。调用前请先输出一段提示信息，说明当前正在处理的步骤，并询问用户是否继续执行和执行的细节。该方法会将内部的pause状态设置为True，以表示待办事项处理已暂停。'''
 
 if __name__ == '__main__':
     todo_manager = TODOListManager(['Step 1: Do something', 'Step 2: Do something else', 'Step 3: Finish up'])
