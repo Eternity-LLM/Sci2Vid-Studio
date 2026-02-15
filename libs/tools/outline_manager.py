@@ -155,6 +155,8 @@ class VideoTime(__VideoTime_hms):
                 
                 super().__init__(h, m, s)
                 return
+            except:
+                raise ValueError
             
 class __OutlineBlock:
     def __init__(self, topic:str, begin:VideoTime, end:VideoTime)->None:
@@ -175,7 +177,39 @@ class __OutlineBlock:
         content = str(content)
         if '|' in content:
             content = content.replace('|', '｜')
-
+        self.block[time] = content
+        return
+    
+    def encode(self)->str:
+        res = f'\n{self.topic}\n'
+        for time, content in self.block.items():
+            res += f'{time}|{content}\n'
+        res += '*****'
+    
+    def decode(self, block:str)->None:
+        self.block = {}
+        lines = block.splitlines()
+        self.topic = lines.pop(0)
+        times = []
+        for line in lines:
+            if '|' in line:
+                time, content = line.strip().split('|', 1)
+                time = VideoTime(time)
+                self.block[time] = content
+                times.append(time)
+            elif '*****' in line:
+                break
+        self.begin = times[0]
+        self.end = times[-1]
+        return
+    
+    def __str__(self):
+        res = f'{self.topic}({self.begin}~{self.end})\n'
+        res += '|时间点|内容|\n|---|---|\n'
+        for time, content in self.block.items():
+            res += f'|{time}|{content}|\n'
+        return res
+    
 class OutlineManager:
     def __init__(self, path:str) -> None:
         self.path = path
