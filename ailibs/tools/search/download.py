@@ -16,9 +16,9 @@ class DownloadTool:
             name='download_file',
             description='根据提供的URL下载文件，并显示下载进度。确保下载完成后文件保存到指定目录，并且验证文件完整性。',
             parameters={
-                'url': '要下载的文件的URL地址，必须是字符串。',
-                'save_path': '文件保存的相对路径（相对于输出目录），必须是字符串。',
-                'timeout': '下载超时时间，单位为秒，默认为30秒，必须是整数。'
+                'url': {'type': 'string', 'description': '要下载的文件的URL地址，必须是字符串。'},
+                'save_path': {'type': 'string', 'description': '文件保存的相对路径（相对于输出目录），必须是字符串。'},
+                'timeout': {'type': 'integer', 'description': '下载超时时间，单位为秒，默认为30秒，必须是整数。'}
             },
             required=['url', 'save_path'],
             function=self.download_file_with_progress
