@@ -291,9 +291,9 @@ OutlineManager.__call__.__doc__ = '''__call__方法用于调用当前对象的�
 
 if __name__ == '__main__':
     outline_manager = OutlineManager('outline.txt')
-    outline_manager.write_outline('00:00', '视频开场介绍')
-    outline_manager.write_outline('01:30', '第一部分内容')
-    outline_manager.write_outline('03:45', '第二部分内容')
+    outline_manager.write_outline('00:00:00', '视频开场介绍')
+    outline_manager.write_outline('00:01:30', '第一部分内容')
+    outline_manager.write_outline('01:03:45', '第二部分内容')
     print(outline_manager.view_outline())
     outline_manager.save_outline()
     new_outline_manager = OutlineManager('outline.txt')
