@@ -164,7 +164,17 @@ class __OutlineBlock:
             end = VideoTime(end)
         self.begin, self.end = begin, end
         self.topic = str(topic)
+        self.block = {}
         return
+
+    def write(self, time:Union[str, VideoTime], content:str)->None:
+        if isinstance(time, str):
+            time=VideoTime(time)
+        if time < self.begin or time > self.end:
+            raise ValueError('The corresponding time is not within the range of this block. ')
+        content = str(content)
+        if '|' in content:
+            content = content.replace('|', '｜')
 
 class OutlineManager:
     def __init__(self, path:str) -> None:
