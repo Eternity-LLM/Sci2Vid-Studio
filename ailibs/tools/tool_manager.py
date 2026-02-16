@@ -19,14 +19,17 @@ class AIFunction:
     )->None:
         self.functions.append(
             {
-                'name': name,
-                'description': description,
-                'parameters': {
-                    'type': 'object',
-                    'properties': parameters,
-                    'required': required
-                },
-                'strict': True
+                'type':'function',
+                'function':{
+                    'name': name,
+                    'description': description,
+                    'parameters': {
+                        'type': 'object',
+                        'properties': parameters,
+                        'required': required
+                    },
+                    'strict': True
+                }
             }
         )
         self.__f.append(function)
@@ -34,7 +37,7 @@ class AIFunction:
     
     def include(self, tool_manager:'AIFunction')->None:
         for i, func in enumerate(tool_manager.functions):
-            if func['name'] in [f['name'] for f in self.functions]:
+            if func['function']['name'] in [f['function']['name'] for f in self.functions]:
                 warnings.warn(f"Function {func['name']} already exists in the current manager. Skipping.")
                 continue
             else:
@@ -47,7 +50,7 @@ class AIFunction:
         try:
             idx = -1
             for i, func in enumerate(self.functions):
-                if func['name'] == __func_name:
+                if func['function']['name'] == __func_name:
                     idx = i
                     break
             if idx == -1:
