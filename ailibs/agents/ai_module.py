@@ -4,13 +4,16 @@ import re
 import openai
 from openai import OpenAI
 from ..tools import TextFileContent, TODOListManager
+from ..tools import AIFunction
 
 class AIModule:
-    def __init__(self, api_key: str, model: str, url: Optional[str] = None, system_prompt: str = '你是一个AI助手。') -> None:
+    def __init__(self, api_key: str, model: str, url: Optional[str] = None, system_prompt: str = '你是一个AI助手。', tools:Optional[AIFunction]=None) -> None:
         self.model, self.url, self.system_prompt = model, url, system_prompt
         self.history = [{'role': 'system', 'content': system_prompt}]
         self.client = OpenAI(api_key=api_key) if url is None else OpenAI(api_key=api_key, base_url=url)
         self.todos = TODOListManager()
+        self.tools = tools
+        self.use_tools = tools is not None
 
     def __answer(self, prompt: str, show: bool = True) -> str:
         response = self.client.chat.completions.create(
