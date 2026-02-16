@@ -1,7 +1,7 @@
 from typing import Optional, List
 import re
 
-import openai
+import json
 from openai import OpenAI
 from ..tools import TextFileContent, TODOListManager
 from ..tools import AIFunction
@@ -14,24 +14,122 @@ class AIModule:
         self.todos = TODOListManager()
         self.tools = tools
         self.use_tools = tools is not None
+        if self.use_tools:
+            self.tool_functions = tools.functions
 
-    def __answer(self, prompt: str, show: bool = True) -> str:
-        response = self.client.chat.completions.create(
-            model=self.model, 
-            messages=self.history + [{'role': 'user', 'content': prompt}],
-            stream=show
-        )
-        if show:
-            result = ''
+    def __answer_show(self, prompt: str) -> str:
+        messages = self.history
+        messages.append({'role':'user', 'content':prompt})
+        stop = False
+        while not stop:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                tools=self.tool_functions,
+                tool_choice='auto',
+                stream=True
+            ) if self.use_tools else self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                stream=True
+            )
+
+            tool_calls = {}
+            msg = ''
             for chunk in response:
-                if chunk.choices and chunk.choices[0].delta.content is not None:
-                    print(chunk.choices[0].delta.content, end='')
-                    result += chunk.choices[0].delta.content
-            print('')
-            return result
-        else:
-            return response.choices[0].message.content
+                if chunk.choices[0].finish_reason == 'stop':
+                    stop = True
+                delta = chunk.choices[0].delta
 
+                if delta.content:
+                    print(delta.content, end='', flush=True)
+                    msg += delta.content
+                
+                if delta.tool_calls:
+                    for tcd in delta.tool_calls:
+                        idx = tcd.index
+                        if idx not in tool_calls:
+                            tool_calls[idx] = tcd
+                        else:
+                            if tcd.id:
+                                tool_calls[idx].id = tcd.id
+                            if tcd.function.name:
+                                tool_calls[idx].function.name = tcd.function.name
+                            if tcd.function.arguments:
+                                tool_calls[idx].function.arguments += tcd.function.arguments
+            messages.append({'role':'assistant', 'content':msg})
+            if tool_calls:
+                for tc in tool_calls.values():
+                    kwargs = json.loads(tc.function.arguments)
+                    fname = tc.function.name
+                    print(f'\n\033[36m调用工具 {fname}\033[0m')
+                    res = self.tools(fname, **kwargs)
+                    messages.append({
+                        'role':'assistant',
+                        'tool_calls':[{
+                            'id':tc.id,
+                            'type':'function',
+                            'function':{
+                                'name':fname,
+                                'arguments':tc.function.arguments
+                            }
+                        }]
+                    })
+                    messages.append({
+                        'role':'tool',
+                        'tool_call_id':tc.id,
+                        'content':res
+                    })
+        return msg
+    
+    def __answer_hide(self, prompt: str) -> str:
+        messages = self.history
+        messages.append({'role':'user', 'content':prompt})
+        stop = False
+        while not stop:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                tools=self.tool_functions,
+                tool_choice='auto'
+            ) if self.use_tools else self.client.chat.completions.create(
+                model=self.model,
+                messages=messages
+            )
+
+            if response.choices[0].finish_reason == 'stop':
+                stop = True
+            msg = response.choices[0].message
+            messages.append(msg)
+            if msg.tool_calls:
+                for tc in msg.tool_calls:
+                    kwargs = json.loads(tc.function.arguments)
+                    fname = tc.function.name
+                    res = self.tools(fname, **kwargs)
+                    messages.append({
+                        'role':'assistant',
+                        'tool_calls':[{
+                            'id':tc.id,
+                            'type':'function',
+                            'function':{
+                                'name':fname,
+                                'arguments':tc.function.arguments
+                            }
+                        }]
+                    })
+                    messages.append({
+                        'role':'tool',
+                        'tool_call_id':tc.id,
+                        'content':res
+                    })
+        return msg['content']
+    
+    def __answer(self, prompt: str, show: bool = True) -> str:
+        if show:
+            return self.__answer_show(prompt)
+        else:
+            return self.__answer_hide(prompt)
+        
     def answer(self, prompt: str, files: Optional[List[TextFileContent]] = None) -> str:
         if files is not None:
             file_prompt = '以下内容是用户提供的文件，供你参考。文件以此格式提供：\n```text\n[file name]: 文件名\n[file content begin]文件内容[file content end]\n```\n。文件：\n'
