@@ -1,4 +1,5 @@
 from typing import List
+import warnings
 
 class AIFunction:
     def __init__(self, functions_dict:List[dict], functions:list)->None:
@@ -29,6 +30,16 @@ class AIFunction:
             }
         )
         self.__f.append(function)
+        return
+    
+    def include(self, tool_manager:'AIFunction')->None:
+        for i, func in enumerate(tool_manager.functions):
+            if func['name'] in [f['name'] for f in self.functions]:
+                warnings.warn(f"Function {func['name']} already exists in the current manager. Skipping.")
+                continue
+            else:
+                self.functions.append(func)
+                self.__f.append(tool_manager.__f[i])
         return
     
     def __call__(self, __func_name:str, *args, **kwargs)->str:
@@ -68,6 +79,9 @@ AIFunction.add_function.__doc__ = '''add_function方法用于向函数管理器�
 }
 - required: 一个列表，列出函数调用时必须提供的参数名称。
 - function: 函数的实现，即一个可调用对象（如函数或lambda表达式），它将被调用时执行。'''
+AIFunction.include.__doc__ = '''include方法用于将另一个AIFunction实例中的函数定义和实现合并到当前实例中。它接受一个参数：
+- tool_manager: 另一个AIFunction实例，包含要合并的函数定义和实现。
+该方法会遍历另一个实例中的函数定义，如果当前实例中已经存在同名的函数，则会发出警告并跳过该函数的合并；如果不存在同名函数，则会将该函数定义和实现添加到当前实例中。'''
 AIFunction.__call__.__doc__ = '''__call__方法用于根据函数名称调用对应的函数实现，并传递参数。它接受以下参数：
 - __func_name: 要调用的函数的名称，必须是之前通过add_function方法添加的函数名称。
 - *args: 可选的位置参数，将被传递给函数实现。
