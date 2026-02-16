@@ -31,7 +31,7 @@ class AIFunction:
         self.__f.append(function)
         return
     
-    def __call__(self, __func_name:str, *args, **kwargs):
+    def __call__(self, __func_name:str, *args, **kwargs)->str:
         __func_name = __func_name.strip()
         try:
             idx = -1
@@ -41,7 +41,16 @@ class AIFunction:
                     break
             if idx == -1:
                 raise ValueError(f'Function {__func_name} not found.')
-            return self.__f[idx](*args, **kwargs)
+            res = self.__f[idx](*args, **kwargs)
+            if isinstance(res, str):
+                return res
+            elif res is None:
+                return f"工具{__func_name}调用成功。（此工具无返回结果）"
+            else:
+                try:
+                    return str(res)
+                except Exception as rt_e:
+                    return f'已调用工具{__func_name}，无法处理返回结果：{str(rt_e)}'
         except Exception as e:
             return f'Error calling function {__func_name}: {str(e)}'
 
