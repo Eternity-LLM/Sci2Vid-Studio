@@ -165,6 +165,7 @@ class AIModule:
             # 对当前 step 重试直到复盘合格或达到最大尝试次数
             while not self.todos.pause and not self.todos.all_completed:
                 attempts += 1
+                print()
                 if retry_messages is None:
                     cur_ans, called_tools = self.__answer(
                         f'{original_prompt}\n你必须严格按照TODO清单完成任务。（可调用工具查看）\n现在请你只完成第{idx}步：\n{cur_step}\n不要完成后面的步骤，但可以修改TODO列表。',
@@ -189,6 +190,7 @@ class AIModule:
                     if self.todos.cur_step != idx:
                         break
 
+                print()
                 # 调用 AI 进行复盘（显示模式）
                 review_prompt = (
                     f'请先检查TODO清单和文件内容（如果有），再复盘回答内容并判断是否合格。\n步骤内容：\n{cur_step}\n\n'
@@ -197,6 +199,7 @@ class AIModule:
                     '如果不合格，回复“不合格”，并简要列出不足与需要重做的改进要点。'
                 )
                 review, review_tools = self.__answer(review_prompt, show=True)
+                print()
 
                 # 简单判定是否合格（只要包含“合格”字样即通过）
                 if isinstance(review, str) and '合格' in review and '不合格' not in review:
