@@ -155,3 +155,5 @@ class AIModule:
         self.todos.print()
 
         # Complete each step in TODO list
+        for idx, step in enumerate(self.todos.todo, start=1):
+            cur_res = self.__answer(f'{prompt}你需要按照下面的TODO列表推进任务。\n{self.todos}\n现在请你完成第{idx}步', show=True)
