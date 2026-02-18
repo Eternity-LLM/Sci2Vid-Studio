@@ -21,6 +21,10 @@ class AIModule:
         except Exception:
             self.tool_functions = []
         self.max_attempts_per_step = max_attempts_per_step
+        # state file path for saving/loading agent state
+        self._state_file = os.path.join(os.getcwd(), 'agent_state.json')
+        # initial user prompt for this run (set in answer)
+        self.initial_prompt = None
 
     def __answer_show(self, prompt: str, messages:Optional[list]=None) -> str:
         if messages is None:
@@ -122,8 +126,63 @@ class AIModule:
             return self.__answer_show(prompt)
         else:
             return self.__answer_hide(prompt)
+
+    def save_state(self, path: Optional[str] = None) -> str:
+        """Save agent state (system prompt, initial prompt, history, todos) to JSON."""
+        p = path or self._state_file
+        data = {
+            'system_prompt': self.system_prompt,
+            'initial_prompt': self.initial_prompt,
+            'model': self.model,
+            'history': self.history,
+            'todos': {
+                'todo': self.todos.todo,
+                'nsteps': self.todos.nsteps,
+                'progress': self.todos.progress,
+                'cur_step': self.todos.cur_step,
+                'pause': self.todos.pause
+            }
+        }
+        with open(p, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return p
+
+    def load(self, path: Optional[str] = None) -> bool:
+        """Load agent state from JSON and restore history and TODO list."""
+        p = path or self._state_file
+        if not os.path.exists(p):
+            return False
+        with open(p, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        # restore simple fields
+        self.system_prompt = data.get('system_prompt', self.system_prompt)
+        self.initial_prompt = data.get('initial_prompt', self.initial_prompt)
+        self.model = data.get('model', self.model)
+        self.history = data.get('history', self.history)
+
+        # restore todos
+        todos_data = data.get('todos', {})
+        todo_list = todos_data.get('todo', [])
+        self.todos = TODOListManager(todo_list)
+        # override attributes if provided
+        self.todos.nsteps = todos_data.get('nsteps', len(todo_list))
+        self.todos.progress = todos_data.get('progress', [False] * self.todos.nsteps)
+        self.todos.cur_step = todos_data.get('cur_step', 1)
+        self.todos.pause = todos_data.get('pause', False)
+
+        # restore tool references
+        self.tools = self.todos.function
+        try:
+            self.tool_functions = self.tools.functions
+        except Exception:
+            self.tool_functions = []
+
+        return True
         
     def answer(self, prompt: str, files: Optional[List[TextFileContent]] = None) -> str:
+        # record initial prompt for saving/loading
+        self.initial_prompt = prompt
         if files is not None:
             file_prompt = '以下内容是用户提供的文件，供你参考。文件以此格式提供：\n```text\n[file name]: 文件名\n[file content begin]文件内容[file content end]\n```\n。文件：\n'
             for file in files:
@@ -136,9 +195,13 @@ class AIModule:
             prompt=prompt + '\n现在，请你将任务拆解成多个步骤，调用工具制定一个TODO列表，每个步骤标上序号，从1开始。注意：只要你调用工具制定TODO列表，不需要执行任务！',
             show=False
         )
-        
-        
+
         results = [str(self.todos)]
+        # save initial state after generating TODOs
+        try:
+            self.save_state()
+        except Exception:
+            pass
 
         # Complete each step in TODO list
         while not self.todos.pause and not self.todos.all_completed:
@@ -169,6 +232,11 @@ class AIModule:
                     # 把当前回答记录并追加到 results/history
                     results.append(cur_ans)
                     self.history.append({'role': 'assistant', 'content': cur_ans})
+                    # persist state after tool-invoked changes
+                    try:
+                        self.save_state()
+                    except Exception:
+                        pass
                     # 如果调用了 complete_all 或者整个 TODO 已完成，则结束所有循环
                     if 'complete_all' in called_tools or self.todos.all_completed:
                         break
@@ -196,11 +264,20 @@ class AIModule:
                     results.append(cur_ans)
                     # 仅把当前步的回答追加到 history（assistant），避免把整个累计结果覆盖到 history
                     self.history.append({'role': 'assistant', 'content': cur_ans})
+                    # persist state after completing a step
+                    try:
+                        self.save_state()
+                    except Exception:
+                        pass
                     break
 
                 # 未合格处理：若超过最大重试次数则强制完成以避免死循环
                 if attempts >= self.max_attempts_per_step:
                     self.todos.complete_step()
+                    try:
+                        self.save_state()
+                    except Exception:
+                        pass
                     break
 
                 # 要求重做：以字典消息形式传回（assistant 的之前回答，user 的复盘反馈），供模型参考

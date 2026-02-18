@@ -151,7 +151,7 @@ class KimiModule(AIModule):
             if os.path.exists(fpath) and os.path.isfile(fpath):
                 with open(fpath, 'rb') as f:
                     img_content = f.read()
-                img_url = f'data:image/{os.path.splitext(fpath)[1]};base64,{base64.b64encode(img_content).decode('utf-8')}'
+                img_url = f'data:image/{os.path.splitext(fpath)[1]};base64,{base64.b64encode(img_content).decode("utf-8")}'
                 self.history.append({'role':'user', 'content':{'type':'image_url', 'image_url':{'url':img_url}}})
     
     def clear_files(self)->None:
