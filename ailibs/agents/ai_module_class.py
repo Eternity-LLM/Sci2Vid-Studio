@@ -103,27 +103,13 @@ class AIModule:
             if response.choices[0].finish_reason == 'stop':
                 stop = True
             msg = response.choices[0].message
-            messages.append({
-                'role':'assistant',
-                'content':msg.content
-            })
+            messages.append(msg)
             if msg.tool_calls:
                 for tc in msg.tool_calls:
                     kwargs = json.loads(tc.function.arguments)
                     fname = tc.function.name
                     called_tools.append(fname)
                     res = self.tools(fname, **kwargs)
-                    messages.append({
-                        'role':'assistant',
-                        'tool_calls':[{
-                            'id':tc.id,
-                            'type':'function',
-                            'function':{
-                                'name':fname,
-                                'arguments':tc.function.arguments
-                            }
-                        }]
-                    })
                     messages.append({
                         'role':'tool',
                         'tool_call_id':tc.id,
@@ -151,11 +137,14 @@ class AIModule:
             show=False
         )
         
-        self.todos.print()
+        
         results = [str(self.todos)]
 
         # Complete each step in TODO list
         while not self.todos.pause and not self.todos.all_completed:
+            print()
+            self.todos.print()
+            print()
             # 注意：TODO 列表的 cur_step 从 1 开始，因此取列表元素时需要减 1
             cur_step = self.todos.todo[self.todos.cur_step - 1]
             idx = self.todos.cur_step
@@ -168,11 +157,11 @@ class AIModule:
                 print()
                 if retry_messages is None:
                     cur_ans, called_tools = self.__answer(
-                        f'{original_prompt}\n你必须严格按照TODO清单完成任务。（可调用工具查看）\n现在请你只完成第{idx}步：\n{cur_step}\n不要完成后面的步骤，但可以修改TODO列表。',
+                        f'{original_prompt}\n你必须严格按照TODO清单完成任务。（可调用工具查看）\n现在请你只完成第{idx}步：\n{cur_step}\n不要完成后面的步骤，不要调用complete_step标记步骤（因为系统会自动处理），但可以修改TODO列表。',
                         show=True
                     )
                 else:
-                    redo_instruction = f'请基于下面的历史回答和复盘反馈，重新完成第{idx}步：\n{cur_step}'
+                    redo_instruction = f'请基于下面的历史回答和复盘反馈，重新完成第{idx}步：\n{cur_step}\n请不要完成后面的步骤。系统会自动标记TODO列表状态，因此请不要调用complete_step。'
                     cur_ans, called_tools = self.__answer_show(redo_instruction, messages=retry_messages)
 
                 # 如果模型在生成回答过程中调用了工具，检测特定工具并调整流程
