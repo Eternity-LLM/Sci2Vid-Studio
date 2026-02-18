@@ -2,6 +2,7 @@ import os
 from typing import Optional, List
 
 import json
+import ast
 from openai import OpenAI
 from ..tools import TextFileContent, TODOListManager
 from ..tools import AIFunction
@@ -67,7 +68,16 @@ class AIModule:
             messages.append({'role':'assistant', 'content':msg})
             if tool_calls:
                 for tc in tool_calls.values():
-                    kwargs = json.loads(tc.function.arguments)
+                    arg_str = tc.function.arguments
+                    try:
+                        kwargs = json.loads(arg_str) if isinstance(arg_str, str) and arg_str.strip() else {}
+                    except Exception:
+                        try:
+                            kwargs = ast.literal_eval(arg_str) if isinstance(arg_str, str) and arg_str.strip() else {}
+                        except Exception:
+                            kwargs = {}
+                    if not isinstance(kwargs, dict):
+                        kwargs = {}
                     fname = tc.function.name
                     called_tools.append(fname)
                     print(f'\n\033[36m调用工具 {fname}\033[0m')
@@ -110,7 +120,16 @@ class AIModule:
             messages.append(msg)
             if msg.tool_calls:
                 for tc in msg.tool_calls:
-                    kwargs = json.loads(tc.function.arguments)
+                    arg_str = tc.function.arguments
+                    try:
+                        kwargs = json.loads(arg_str) if isinstance(arg_str, str) and arg_str.strip() else {}
+                    except Exception:
+                        try:
+                            kwargs = ast.literal_eval(arg_str) if isinstance(arg_str, str) and arg_str.strip() else {}
+                        except Exception:
+                            kwargs = {}
+                    if not isinstance(kwargs, dict):
+                        kwargs = {}
                     fname = tc.function.name
                     called_tools.append(fname)
                     res = self.tools(fname, **kwargs)
