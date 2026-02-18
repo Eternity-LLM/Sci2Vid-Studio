@@ -13,8 +13,5 @@ ai = DeepSeekModule(
 )
 
 while True:
-    user_input = input("请输入你的问题（输入'退出'结束对话）：")
-    if user_input.lower() == '退出':
-        print("对话结束。")
-        break
-    ai.answer(user_input)
+    ai.load(os.path.join(os.path.curdir, 'agent_state.json'))
+    ai.answer(ai.initial_prompt)
