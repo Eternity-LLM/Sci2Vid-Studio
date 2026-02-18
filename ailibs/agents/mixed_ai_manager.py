@@ -1,7 +1,6 @@
 from typing import List, Literal, Optional, Union, Dict
 
 from .ai_module_class import AIModule
-from .ai_modules import DeepSeekModule, KimiModule, DoubaoModule
 
 
 class MixedAIManager:
