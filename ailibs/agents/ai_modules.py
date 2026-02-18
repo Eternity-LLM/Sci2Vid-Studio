@@ -162,5 +162,7 @@ class KimiModule(AIModule):
     
     def __del__(self):
         self.clear_files()
-    
-    
+
+class DoubaoModule(AIModule):
+    pass
+
