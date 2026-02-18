@@ -1,3 +1,6 @@
+import base64
+import os
+from pathlib import Path
 from .ai_module_class import AIModule
 from openai import OpenAI
 from typing import Optional
@@ -121,3 +124,43 @@ class DeepSeekModule(AIModule):
                         'content':res
                     })
         return msg, called_tools
+
+class KimiModule(AIModule):
+    def __init__(self, api_key:str, reasoning:bool=True, system_prompt:str='你是一个AI助手。', tools:Optional[AIFunction]=None, max_attempts_per_step: int = 10)->None:
+        super().__init__(
+            api_key, 
+            'kimi-k2.5',
+            url='https://api.moonshot.cn/v1',
+            system_prompt=system_prompt,
+            tools=tools,
+            max_attempts_per_step=max_attempts_per_step
+        )
+        self.reasoning = reasoning
+        self.file_ids = []
+    
+    def upload_file(self, fpath:str, purpose:str)->None:
+        if purpose == 'file-extract' or purpose == 'video':
+            file_obj = self.client.files.create(file=Path(fpath), purpose=purpose)
+            self.file_ids.append(file_obj.id)
+            if purpose == 'file-extract':
+                content = self.client.files.content(file_id=file_obj.id).text
+                self.history.append({'role':'system', 'content':content})
+            else:
+                self.history.append({'role':'user', 'content':[{'type':'video_url','video_url':{'url':f'ms://{file_obj.id}'}}]})
+        elif purpose == 'image':
+            if os.path.exists(fpath) and os.path.isfile(fpath):
+                with open(fpath, 'rb') as f:
+                    img_content = f.read()
+                img_url = f'data:image/{os.path.splitext(fpath)[1]};base64,{base64.b64encode(img_content).decode('utf-8')}'
+                self.history.append({'role':'user', 'content':{'type':'image_url', 'image_url':{'url':img_url}}})
+    
+    def clear_files(self)->None:
+        for f_id in self.file_ids:
+            self.client.files.delete(file_id=f_id)
+        self.file_ids = []
+        return
+    
+    def __del__(self):
+        self.clear_files()
+    
+    
