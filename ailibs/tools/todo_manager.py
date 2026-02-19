@@ -87,20 +87,7 @@ class TODOListManager:
             required=['step'],
             function=self.append
         )
-        self.function.add_function(
-            name='complete_step',
-            description='标记当前步骤为已完成，并将当前步骤指针移动到下一个步骤。',
-            parameters={},
-            required=[],
-            function=self.complete_step
-        )
-        self.function.add_function(
-            name='complete_all',
-            description='标记所有步骤为已完成，并将当前步骤指针移动到最后。',
-            parameters={},
-            required=[],
-            function=self.complete_all
-        )
+        
         self.function.add_function(
             name='clear_todo',
             description='清空待办事项列表和相关状态。',
