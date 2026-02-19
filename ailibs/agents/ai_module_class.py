@@ -241,7 +241,7 @@ class AIModule:
         # Generate TODO list
         self.__answer(
             prompt=prompt + '\n现在，请你将任务拆解成多个步骤，调用工具制定一个TODO列表，每个步骤标上序号，从1开始。注意：只要你调用工具制定TODO列表，不需要执行任务！',
-            show=False
+            show=True
         )
 
         results = [str(self.todos)]
