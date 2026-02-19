@@ -4,7 +4,7 @@ from typing import Optional, List
 import json
 import ast
 from openai import OpenAI
-from ..tools import TextFileContent, TODOListManager
+from ..tools import TextFileContent, TODOListManager, FileManager
 from ..tools import AIFunction
 
 class AIModule:
@@ -26,6 +26,35 @@ class AIModule:
         self._state_file = os.path.join(os.getcwd(), 'agent_state.json')
         # initial user prompt for this run (set in answer)
         self.initial_prompt = None
+        # file-based state directory and manager (用于在步骤间保存关键内容，避免超出上下文长度)
+        try:
+            self._file_dir = os.path.join(os.getcwd(), '.agent_files')
+            os.makedirs(self._file_dir, exist_ok=True)
+            self._file_manager = FileManager(self._file_dir)
+            # expose file manager functions to the agent tools so model can call read_file/write_file
+            try:
+                self.tools.include(self._file_manager.function)
+            except Exception:
+                pass
+        except Exception:
+            self._file_dir = None
+            self._file_manager = None
+
+    def _save_step_file(self, step_idx: int, content: str) -> Optional[str]:
+        """将当前步骤的回答写入文件，并在 history 中添加提示，返回写入的相对文件名。"""
+        if not self._file_manager or not self._file_dir:
+            return None
+        fname = f'step_{step_idx}_summary.txt'
+        try:
+            # 直接写入完整回答；若需精简，可改为让模型生成摘要后写入
+            self._file_manager.write_file(fname, content)
+            # 将提示添加到 conversation history，提醒模型可用文件读取
+            note = (f'注意：第{step_idx}步的关键内容已保存为文件 {fname}。'
+                    ' 若需要历史关键信息以避免重复上下文长度，请使用工具 `read_file` 读取该文件的内容。')
+            self.history.append({'role': 'system', 'content': note})
+            return fname
+        except Exception:
+            return None
 
     def __answer_show(self, prompt: str, messages:Optional[list]=None) -> str:
         if messages is None:
@@ -238,12 +267,30 @@ class AIModule:
                 attempts += 1
                 print()
                 if retry_messages is None:
+                    step_save_fname = os.path.join('.agent_files', f'step_{idx}_summary.txt')
+                    write_instr = (
+                        "\n\n注意：如果本步骤产生可持久化的关键结果，" 
+                        "请调用工具 `write_file` 将精炼后的关键要点写入文件 '" + step_save_fname + "'。"
+                        " 文件内容应只包含要点与必要数据，不要重复大量上下文；最多 8 行或 300 字；使用项目符号或短句呈现。"
+                        " 写入后在回答中仅给一行极简说明（最多一句），不要把完整结果粘贴进回答。"
+                    )
                     cur_ans, called_tools = self.__answer(
-                        f'{original_prompt}\n你必须严格按照TODO清单完成任务。（可调用工具查看）\n现在请你只完成第{idx}步：\n{cur_step}\n不要完成后面的步骤，不要调用complete_step标记步骤（因为系统会自动处理），但可以修改TODO列表。',
+                        f'{original_prompt}\n你必须严格按照TODO清单完成任务。（可调用工具查看）\n现在请你只完成第{idx}步：\n{cur_step}\n不要完成后面的步骤，不要调用complete_step标记步骤（因为系统会自动处理），但可以修改TODO列表。'
+                        + write_instr,
                         show=True
                     )
                 else:
-                    redo_instruction = f'请基于下面的历史回答和复盘反馈，重新完成第{idx}步：\n{cur_step}\n请不要完成后面的步骤。系统会自动标记TODO列表状态，因此请不要调用complete_step。'
+                    step_save_fname = os.path.join('.agent_files', f'step_{idx}_summary.txt')
+                    write_instr = (
+                        "\n\n注意：如果本步骤产生可持久化的关键结果，" 
+                        "请调用工具 `write_file` 将精炼后的关键要点写入文件 '" + step_save_fname + "'。"
+                        " 文件内容应只包含要点与必要数据，不要重复大量上下文；最多 8 行或 300 字；使用项目符号或短句呈现。"
+                        " 写入后在回答中仅给一行极简说明（最多一句），不要把完整结果粘贴进回答。"
+                    )
+                    redo_instruction = (
+                        f'请基于下面的历史回答和复盘反馈，重新完成第{idx}步：\n{cur_step}\n请不要完成后面的步骤。系统会自动标记TODO列表状态，因此请不要调用complete_step。'
+                        + write_instr
+                    )
                     cur_ans, called_tools = self.__answer_show(redo_instruction, messages=retry_messages)
 
                 # 如果模型在生成回答过程中调用了工具，检测特定工具并调整流程
@@ -283,6 +330,11 @@ class AIModule:
                     results.append(cur_ans)
                     # 仅把当前步的回答追加到 history（assistant），避免把整个累计结果覆盖到 history
                     self.history.append({'role': 'assistant', 'content': cur_ans})
+                    # 优先由模型主动调用 write_file 保存关键信息；若模型未调用，则在 history 中加入提示，提醒后续步骤可读取文件
+                    if 'write_file' not in called_tools:
+                        note = (f'注意：第{idx}步的关键结果尚未保存为文件。如需持久化，请调用工具 `write_file` 将精要写入 .agent_files/step_{idx}_summary.txt，'
+                                ' 文件内容最多 8 行或 300 字，只包含要点。')
+                        self.history.append({'role': 'system', 'content': note})
                     # persist state after completing a step
                     try:
                         self.save_state()
@@ -293,6 +345,16 @@ class AIModule:
                 # 未合格处理：若超过最大重试次数则强制完成以避免死循环
                 if attempts >= self.max_attempts_per_step:
                     self.todos.complete_step()
+                    # 达到最大重试次数时做最小回退保存（截断），以免丢失重要工作成果
+                    if 'write_file' not in called_tools:
+                        try:
+                            lines = cur_ans.splitlines()
+                            short = '\n'.join(lines[:8])
+                            short = short[:1000]
+                            self._save_step_file(idx, short)
+                            self.history.append({'role':'system', 'content': f'已为第{idx}步写入回退摘要文件 step_{idx}_summary.txt（内容已截断）。'})
+                        except Exception:
+                            pass
                     try:
                         self.save_state()
                     except Exception:

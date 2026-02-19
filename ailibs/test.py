@@ -12,6 +12,10 @@ ai = DeepSeekModule(
     max_attempts_per_step=5
 )
 
+ai.load(os.path.join(os.path.curdir, 'agent_state.json'))
+ai.answer(ai.initial_prompt)
 while True:
-    ai.load(os.path.join(os.path.curdir, 'agent_state.json'))
-    ai.answer(ai.initial_prompt)
+    user_input = input("User: ")
+    if user_input.lower() in ['exit', 'quit']:
+        break
+    ai.answer(user_input)
